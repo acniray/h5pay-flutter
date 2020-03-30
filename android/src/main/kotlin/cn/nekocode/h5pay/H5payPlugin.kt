@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import android.view.View
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -17,6 +18,11 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry.Registrar
+import android.R.id.message
+import android.webkit.ConsoleMessage
+import android.webkit.WebChromeClient
+
+
 
 object ReturnCode {
     const val success = 1
@@ -38,6 +44,7 @@ class H5payPlugin(private val registrar: Registrar) : MethodCallHandler {
     private var result: Result? = null
 
     override fun onMethodCall(call: MethodCall, result: Result) {
+        Log.i("onMethodCall",call.method)
         when (call.method) {
             "launchPaymentUrl" -> {
                 launchPaymentUrl(call, result)
@@ -52,6 +59,7 @@ class H5payPlugin(private val registrar: Registrar) : MethodCallHandler {
                 result.notImplemented()
             }
         }
+        Log.i("onMethodCallResult",result.toString())
     }
 
     private fun launchPaymentUrl(call: MethodCall, result: Result) {
@@ -123,7 +131,16 @@ class H5payPlugin(private val registrar: Registrar) : MethodCallHandler {
         webView.settings.loadsImagesAutomatically = false
         webView.settings.blockNetworkImage = false
         webView.webViewClient = Client()
+        webView.webChromeClient = MyWebChromeClient()
         this.webView = webView
+    }
+
+    internal inner class MyWebChromeClient : WebChromeClient() {
+        override fun onConsoleMessage(cm: ConsoleMessage): Boolean {
+            Log.d("CONTENT", String.format("%s @ %d: %s",
+                    cm.message(), cm.lineNumber(), cm.sourceId()))
+            return true
+        }
     }
 
     inner class Client : WebViewClient() {
@@ -142,6 +159,7 @@ class H5payPlugin(private val registrar: Registrar) : MethodCallHandler {
 
         private fun shouldOverrideUrlLoading(url: String?): Boolean {
             url ?: return false
+            Log.i("OverrideUrlLoading",url)
             if (Utils.isPaymentAppUrl(url, paymentSchemes)) {
                 val success = Utils.launchUrl(registrar.activity(), url)
                 result?.success(if (success) ReturnCode.success else ReturnCode.failCantJump)
